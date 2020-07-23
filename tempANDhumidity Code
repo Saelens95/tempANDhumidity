@@ -1,0 +1,104 @@
+//IOT Course -- Rock Valley College
+//Written by Chuck Konkol public domain
+//Revised/Edited by Ryan Saelens public domain
+//Temp / Humditity using DHT11 sensor
+
+
+// This #include statement was automatically added by the Particle IDE.
+#include <Adafruit_DHT_Particle.h>
+
+// This #include statement was automatically added by the Particle IDE.
+#include <blynk.h>
+
+// This #include statement was automatically added by the Particle IDE.
+#include "Adafruit_DHT_Particle.h"
+#include "blynk.h"
+
+
+#define DHTPIN D2     //What pin we're connected to
+
+//Uncomment whatever type you're using!
+//#define DHTTYPE DHT11		// DHT 11 
+#define DHTTYPE DHT11		// DHT 22 (AM2302)
+//#define DHTTYPE DHT21		// DHT 21 (AM2301)
+
+//Connect pin 1 (on the left) of the sensor to +5V
+//Connect pin 2 of the sensor to whatever your DHTPIN is
+//Connect pin 4 (on the right) of the sensor to GROUND
+//Connect a 10K resistor from pin 2 (data) to pin 1 (power) of the sensor
+
+DHT dht(DHTPIN, DHTTYPE);
+
+//DANGER - DO NOT SHARE!!!!
+char auth[] = "###############"; // Put your blynk token here
+bool run;
+
+void setup() {
+    Blynk.begin(auth);
+	Particle.publish("state", "DHT11 Test Start");
+    run = true;
+	dht.begin();
+	delay(2000);
+}
+
+void loop() {
+    run = true;
+    Blynk.run();
+  
+//Wait a few seconds between measurements...
+delay(2000);
+
+//Reading temperature or humidity takes about 250 milliseconds!
+//Sensor readings may also be up to 2 seconds
+//Very slow sensor
+
+//Read Humidity 
+	float h = dht.getHumidity();
+//Read Temperature as Celsius
+	float t = dht.getTempCelcius();
+//Read Temperature as Farenheit
+	float f = dht.getTempFarenheit();
+//Read Farenheit as int to Test Later 	
+	int t1 = dht.getTempFarenheit();
+//Read Humidity as int (not using)	
+	int h1 =  dht.getHumidity();
+
+//Particle.publish("temps",  String(t1));
+  
+//Check if any reads failed and exit early (to try again).
+	if (isnan(h) || isnan(t) || isnan(f)) {
+		Serial.println("Failed to Read From DHT Sensor!");
+        run = false;
+	}
+	
+//Compute Heat Index
+//Must send in temp in Fahrenheit!
+if (run == true){
+//Read HeatIndex 
+    float hi = dht.getHeatIndex();
+//Read DewPoint 
+	float dp = dht.getDewPoint();
+//Read TempKelvin 
+	float k = dht.getTempKelvin();
+//Publish all reading to log
+Particle.publish("Readings", String::format("{\"Hum(\%)\": %4.2f, \"Temp(°F)\": %4.2f, \"DP(°C)\": %4.2f, \"HI(°C)\": %4.2f}", h, f, dp, hi));
+
+//Set int Fahrenheigt and Humidity to String
+   String sf(f, 0);
+   String sh(h, 0);
+//virtual pin 1 will be the temperature (int)  
+    Blynk.virtualWrite(V1, sf);
+     Particle.publish("Temp(F)", sf);
+//virtual pin 2 will be the humidity (int)
+    Blynk.virtualWrite(V2, sh);
+     Particle.publish("Humidity", sh);
+//Pause 2 seconds
+    delay(2000);
+}else{
+     run = true;
+     //If temp above 100 or below 30 then publish false reading (caused by noise)
+     //Particle.publish("errors", String(t1));
+     delay(2000);
+}
+	delay(10000);
+}
